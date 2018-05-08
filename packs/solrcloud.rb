@@ -32,7 +32,6 @@ variable "solr_jmx_port",
 resource "lb",
   :except => [ 'single' ],
   :cookbook => "oneops.1.lb",
-  :design => false,
   :attributes => {
     "listeners" => "[\"tcp 8983 tcp 8983\"]"
   }
@@ -169,8 +168,9 @@ resource "solrcloud",
     'solr_opts_params' => '["solr.autoSoftCommit.maxTime=15000", "solr.autoCommit.maxTime=60000", "solr.directoryFactory=solr.MMapDirectoryFactory", "socketTimeout=30000", "connTimeout=30000", "maxConnectionsPerHost=100", "distribUpdateSoTimeout=60000", "distribUpdateConnTimeout=40000", "solr.jetty.threads.max=3000"]',
     'skip_solrcloud_comp_execution' => 'false',
     'enable_cinder' => 'true',
-    'solr_custom_component_version' => '0.0.2',
-    'solr_api_timeout_sec' => '300'
+    'solr_custom_component_version' => '0.0.3',
+    'solr_api_timeout_sec' => '300',
+    'solr_monitor_version' => '1.0.3'
   },
 
   :monitors => {
@@ -188,6 +188,21 @@ resource "solrcloud",
         'SolrProcessDown' => threshold('1m', 'avg', 'up', trigger('<=', 98, 10, 5), reset('>', 95, 2, 1), 'unhealthy')
       }
     },
+    'SolrMetricsMonitorCheck' => {
+        :description => 'SolrMetricsMonitoring',
+        :source => '',
+        :chart => {'min' => '0', 'max' => '100', 'unit' => 'Percent'},
+        :cmd => 'check_solr_metrics_monitor',
+        :cmd_line => '/opt/nagios/libexec/check_solr_metrics_monitor.sh',
+        :metrics => {
+            'up' => metric(:unit => '%', :description => 'Percent Up')
+        },
+        :thresholds => {
+            # Trigger alarm if value goes below 75 for 8 times in a 10 minute window
+            # # Reset alarm if value goes above 75 for 1 time in a 2 minute window
+            'SolrMetricsMonitoringDown' => threshold('1m', 'avg', 'up', trigger('<=', 75, 10, 8), reset('>', 75, 2, 1))
+        }
+    },
     'SolrZKConnectionCheck' => {
       :description => 'SolrZKConnection',
       :source => '',
@@ -198,7 +213,9 @@ resource "solrcloud",
         'up' => metric(:unit => '%', :description => 'Percent Up')
       },
       :thresholds => {
-        'SolrZKConnectionDown' => threshold('1m', 'avg', 'up', trigger('<=', 75, 2, 1), reset('>', 80, 2, 1))
+        # Trigger alarm if value goes below 75 for 8 times in a 10 minute window
+        # Reset alarm if value goes above 75 for 1 time in a 2 minute window
+        'SolrZKConnectionDown' => threshold('1m', 'avg', 'up', trigger('<=', 75, 10, 8), reset('>', 75, 2, 1))
       }
     },
     'MemoryStats' =>  {
@@ -479,7 +496,8 @@ resource "jolokia_proxy",
     :services => "mirror"
   },
   :attributes => {
-    :bind_port => '$OO_LOCAL{jolokia_port}'
+    :bind_port => '$OO_LOCAL{jolokia_port}',
+    :jvm_parameters => '-Xms512m -Xmx1g'
   },
   :monitors => {
     'JolokiaProxyProcess' => {
@@ -657,7 +675,20 @@ resource "solr-collection",
         'pctgShardsUp' => metric( :unit => '%', :description => 'Percentage of Shards UP', :dstype => 'GAUGE')
       },
       :thresholds => {
-        'pctgShardsWithMinActiveReplicas' => threshold('1m','avg','pctgShardsWithMinActiveReplicas',trigger('<',100,2,1),reset('=',100,2,1))
+        'pctgShardsWithMinActiveReplicas' => threshold('1m','avg','pctgShardsWithMinActiveReplicas',trigger('<',100,5,4),reset('=',100,2,1))
+      }
+    },
+    'ReplicaDistributionStatus' =>  {
+      :description => 'ReplicaDistributionStatus',
+      :source => '',
+      :chart => {'min'=>0, 'unit'=>''},
+      :cmd => 'replica_distribution_validation.rb!:::node.workorder.rfcCi.ciAttributes.collection_name:::!:::node.workorder.rfcCi.ciAttributes.replication_factor:::',
+      :cmd_line => '/opt/nagios/libexec/replica_distribution_validation.rb $ARG1$ $ARG2$',
+      :metrics =>  {
+        'replicaCountToMove' => metric( :unit => '%', :description => 'No. of Replicas To Move', :dstype => 'GAUGE')
+      },
+      :thresholds => {
+        'replicaCountToMove' => threshold('5m','avg','replicaCountToMove',trigger('>',0,15,2),reset('<=',0,15,1))
       }
     }
   }
@@ -721,6 +752,7 @@ resource "volume-blockstorage",
   {:from => 'hostname', :to => 'os'},
   {:from => 'jolokia_proxy', :to => 'solrcloud'},
   {:from => 'user-app', :to => 'volume-blockstorage'},
+  {:from => 'solrcloud', :to => 'volume-app'}, # solrcloud need access to mount point from volume-app
   {:from => 'solrcloud', :to => 'volume-blockstorage'},
   {:from => 'volume-blockstorage', :to => 'storage'},
   {:from => 'storage', :to => 'compute'},

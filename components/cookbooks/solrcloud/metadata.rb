@@ -283,6 +283,17 @@ attribute 'solr_custom_component_version',
               :order => 33
           }
 
+# Solr Monitor Specific Attributes
+attribute 'solr_monitor_version',
+          :description => 'Version of jar file with Solr Metrics',
+          :default => '1.0.3',
+          :required => 'required',
+          :format => {
+              :help => 'Expects a version of a jar file whose artifact is com.walmart.strati.af.df.managed_solr.solrmonitor:solrcloud-oneops-metrics. Example: 0.0.1, 1.0.2 etc',
+              :category => '2.SolrCloud Monitoring',
+              :order => 34
+          }
+
 # Attribute visible only in the Operations phase because of grouping-type bom
 # Value for the attribute is assigned by us in the recipes
 # This attribute helps to see the IP address in the Operations phase.
@@ -339,7 +350,7 @@ attribute 'jetty_filter_url',
   }
 
 attribute 'enable_authentication',
-          :description => 'The boolean value which will indicate if authentication is enabled for Solr server or not',
+          :description => 'Enable authentication to Solr servers?',
           :default => "false",
           :format => {
               :category => '7.Solr Authentication',
@@ -377,6 +388,15 @@ attribute 'enable_cinder',
     :order => 1
   }
 
+attribute 'allow_ephemeral_on_azure',
+  :description => 'Allow ephemeral on Azure',
+  :default => "false",
+  :format => {
+    :category => '8.Cinder',
+    :help => 'Setting this to false will enfore to use storage instead of ephemeral',
+    :form => {'field' => 'checkbox'},
+    :order => 2
+  }
 ######################################
 # Actions in the Operations Phase    #
 # Each recipe here becomes an action #

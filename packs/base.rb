@@ -109,7 +109,7 @@ resource "os",
   :cookbook => "oneops.1.os",
   :design => true,
   :requires => { "constraint" => "1..1", "services" => "compute,dns,*mirror,*ntp,*windows-domain" },
-  :attributes => { "ostype"  => "centos-7.2",
+  :attributes => { "ostype"  => "centos-7.3",
                    "dhclient"  => 'true'
                  },
   :monitors => {
@@ -953,12 +953,16 @@ resource "artifact",
   :requires => { "constraint" => "0..*" }
 
 resource "service-mesh",
-	:cookbook => "oneops.1.service-mesh",
-	:design => true,
-	:requires => {
-    	"constraint" => "0..1",
-    	'services' => 'servicemeshcloudservice'
-     }
+  :cookbook => "oneops.1.service-mesh",
+  :design => true,
+  :requires => {
+    "constraint" => "0..1",
+    'services' => 'servicemeshcloudservice'
+   },
+  :attributes => {
+    "service-mesh-version" => "1.7.1",
+    "service-mesh-root" => "/opt/service-mesh"
+  }
 
 # depends_on
 [ { :from => 'compute',     :to => 'secgroup' } ].each do |link|
@@ -999,6 +1003,7 @@ end
   { :from => 'secrets-client',  :to => 'user'},
   { :from => 'secrets-client',  :to => 'certificate'},
   { :from => 'secrets-client',  :to => 'volume'},
+  { :from => 'objectstore',  :to => 'secrets-client'},
   { :from => 'objectstore',  :to => 'user'},
   { :from => 'service-mesh', :to => 'os'},
   { :from => 'service-mesh', :to => 'volume'  }
