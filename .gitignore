@@ -1,14 +1,14 @@
-Gemfile.lock
 .project
 .chef
 .arcconfig
 **/.DS_Store
 .rspec
 .DS_Store
+target/
 
 # Intellij IDEA
-.idea
-.iml
+.idea/
+*.iml
 
 # Berkshelf
 .vagrant
@@ -16,8 +16,13 @@ Gemfile.lock
 Berksfile.lock
 
 # Bundler
+Gemfile.lock
 bin/*
 .bundle/*
-
+.ruby-version
 .kitchen/
 .kitchen.local.yml
+.settings
+
+
+

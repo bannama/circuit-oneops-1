@@ -1,0 +1,51 @@
+tools:
+  jdk:
+    - 8
+  maven:
+    - 3.5.0
+
+envs: 
+  global: 
+    variables:
+      AUTH_TOKEN: ENC[axFVAU7LEJe06+lYIgjMkTjkZDmr1UQoWWAWYjYn4RG94fwCuH98egLHnlCTFgmk]
+      ONEOPS_AUTHTOKEN: ENC[WEDVpQpq1IkeHVueJ3ywaSBlemgCTJ8yO5Mj9ll+Bgo=]
+      CIRCUIT_REPO: ONEOPS-1-REPOSITORY
+      CIRCUIT_TYPE: oneops-1
+      CIRCUIT_VAR_NAME: circuit-${CIRCUIT_TYPE}-version
+      
+flows:
+  default:
+    - echo ${GITHUB_PR_NUMBER}
+    - call: merge-build
+    
+  pr:
+   - call: pr-build 
+    
+  merge-build:
+    - rm -rf _stashed_ws_snapshots
+    - exposeVars(maven)
+    - (name mvn-info) echo "Building ${MAVEN_GROUP_ID}:${MAVEN_ARTIFACT_ID}:${MAVEN_VERSION}"
+    - (name mvn-build) mvn clean release:prepare release:perform -B
+    - var(RELEASE_VERSION = '%{MAVEN_VERSION.replace("-SNAPSHOT", "")}')
+    - savepoint
+    - rm -rf OneOpsCI
+    - git clone https://${AUTH_TOKEN}@gecgithub01.walmart.com/oneops/OneOpsCI.git
+    - dir(OneOpsCI):
+      - echo "Running Maven build in `pwd`"
+      - savepoint
+      - echo " Release Deploy to Oneops PQA ${RELEASE_VERSION} "
+      - (name mvn-test-pqa) mvn test -Dtestng.suite.type=null -Dtestng.suite.orgname=oneops-int -Dtestng.suite.gitCommitId=${GITHUB_BRANCH_HEAD_SHA} -Dtestng.suite.gitPullNumber=${GITHUB_PR_NUMBER} -Dtestng.suite.jenkinsUrl=$BUILD_URL -Doneops.authtoken=${ONEOPS_AUTHTOKEN} -Doneops.version.variables.local="${CIRCUIT_VAR_NAME}:${RELEASE_VERSION} ${CIRCUIT_REPO}:pangaea_releases" -Doneops.version.variables.global="${CIRCUIT_VAR_NAME}:${RELEASE_VERSION} ${CIRCUIT_REPO}:pangaea_releases" -Doneops.instance=PQA -Doneops.circuit.type=${CIRCUIT_TYPE} -Dconf.path=/qa.properties
+      - savepoint
+      - echo " Release Deploy to Oneops STG ${RELEASE_VERSION}"
+      - (name mvn-test-stg) mvn test -Dtestng.suite.type=null -Dtestng.suite.orgname=stgqe -Dtestng.suite.gitCommitId=${GITHUB_BRANCH_HEAD_SHA} -Dtestng.suite.gitPullNumber=${GITHUB_PR_NUMBER} -Dtestng.suite.jenkinsUrl=$BUILD_URL -Doneops.authtoken=${ONEOPS_AUTHTOKEN} -Doneops.version.variables.local="${CIRCUIT_VAR_NAME}:${RELEASE_VERSION} ${CIRCUIT_REPO}:pangaea_releases" -Doneops.version.variables.global="${CIRCUIT_VAR_NAME}:${RELEASE_VERSION} ${CIRCUIT_REPO}:pangaea_releases" -Doneops.instance=STG -Doneops.circuit.type=${CIRCUIT_TYPE} -Dconf.path=/qa.properties
+  
+  pr-build:
+    - rm -rf _stashed_ws_snapshots
+    - exposeVars(maven)
+    - (name mvn-info) echo "Building ${MAVEN_GROUP_ID}:${MAVEN_ARTIFACT_ID}:${MAVEN_VERSION}"
+    - (name mvn-build) mvn -B clean deploy
+    - rm -rf OneOpsCI
+    - git clone https://${AUTH_TOKEN}@gecgithub01.walmart.com/oneops/OneOpsCI.git
+    - dir(OneOpsCI):
+      - echo "Running Maven build in `pwd`"
+      - (name mvn-test-pqa) mvn test -Dtestng.suite.type=null -Dtestng.suite.orgname=oneops-int -Dtestng.suite.gitCommitId=null -Dtestng.suite.gitPullNumber=${GITHUB_PR_NUMBER} -Dtestng.suite.jenkinsUrl=$BUILD_URL -Doneops.authtoken=${ONEOPS_AUTHTOKEN} -Doneops.version.variables.local="${CIRCUIT_VAR_NAME}:${MAVEN_VERSION} ${CIRCUIT_REPO}:pangaea_snapshots" -Doneops.version.variables.global="${CIRCUIT_VAR_NAME}:${MAVEN_VERSION} ${CIRCUIT_REPO}:pangaea_snapshots" -Doneops.instance=PQA -Doneops.circuit.type=${CIRCUIT_TYPE} -Dconf.path=/qa.properties
