@@ -25,13 +25,13 @@ include_recipe 'solrcloud::solrauth'
 include_recipe 'solrcloud::monitor'
 include_recipe 'solrcloud::post_solrcloud'
 
-# Chef::Log.info("Configure Logging")
-# template "/etc/logrotate.d/solr#{node['solrmajorversion']}" do
-#   	source "solr.logrotate.erb"
-#   	owner "#{node['solr']['user']}"
-# 	group "#{node['solr']['user']}"
-#     mode '0755'
-# end
+Chef::Log.info("Configure Logging")
+template "/etc/logrotate.d/solr" do
+  	source "solr.logrotate.erb"
+    owner "root"
+    group "root"
+    mode '0644'
+end
 
 # cron "logrotate" do
 #   	minute '0'

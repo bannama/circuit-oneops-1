@@ -159,6 +159,25 @@ if (node['solr_version'].start_with? "6.") || (node['solr_version'].start_with? 
     end
   }
 
+  # Create a specific log directory under node['data_dir_path'] to keep logs which are being generated as part of solr pack
+  Chef::Log.info("creating #{node['data_dir_path']}/solr-pack-logs for pack-users")
+  directory "#{node['data_dir_path']}/solr-pack-logs" do
+    owner node['solr']['user']
+    group node['solr']['user']
+    mode "0755"
+    recursive true
+    action :create
+  end
+
+  # Create a log file under node['data_dir_path']/solr-pack-logs to keep logs related to solr zookeeper connection check OO monitor
+  Chef::Log.info("creating #{node['data_dir_path']}/solr-pack-logs/solr_zk_check.log for nagios monitor")
+  file "#{node['data_dir_path']}/solr-pack-logs/solr_zk_check.log" do
+    mode '0644'
+    owner 'nagios'
+    group 'nagios'
+    action :create_if_missing
+  end
+
   # create heap_dump_dir if provided
   if node["heap_dump_dir"] != nil && !node["heap_dump_dir"].empty?
   	directory node["heap_dump_dir"] do
