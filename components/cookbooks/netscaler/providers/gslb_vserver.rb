@@ -151,6 +151,7 @@ def create_gslb_vserver
         :ecs => "ENABLED"
     }
 
+    Chef::Log.info( "add : Request to gslb #{gslb_vserver}")
     req = 'object= { "gslbvserver":'+JSON.dump(gslb_vserver)+'}'
 
     resp_obj = JSON.parse(conn.request(
@@ -168,6 +169,7 @@ def create_gslb_vserver
           :lbmethod => @new_resource.lbmethod
       }
 
+      Chef::Log.info( "add : ECS not supported, Request to gslb #{gslb_vserver}")
       req = 'object= { "gslbvserver":'+JSON.dump(gslb_vserver)+'}'
 
       resp_obj = JSON.parse(conn.request(
@@ -218,15 +220,34 @@ def create_gslb_vserver
 
     gslb_vserver = {
         :name => gslb_vserver_name,
-        :lbmethod => @new_resource.lbmethod
+        :lbmethod => @new_resource.lbmethod,
+        :ecs => "ENABLED"
     }
 
+    Chef::Log.info( "update : Request to gslb #{gslb_vserver}")
     gslbvserver = JSON.dump(gslb_vserver)
 
     resp_obj = JSON.parse(conn.request(
         :method=>:put,
         :path=>"/nitro/v1/config/gslbvserver/#{gslb_vserver_name}/",
         :body => '{ "gslbvserver": ['+gslbvserver+'] }').body)
+
+    ##for netscaler which don't support ECS least NetScaler for ECS is 11.1
+    if resp_obj["errorcode"] == 278 && resp_obj["message"] =~ /Invalid argument \[ecs\]/
+      puts "***TAG:ecs_not_supported=#{node['netscaler_host_ip']}"
+      gslb_vserver = {
+          :name => gslb_vserver_name,
+          :lbmethod => @new_resource.lbmethod
+      }
+      Chef::Log.info( "update : ECS not supported, Request to gslb #{gslb_vserver}")
+
+      gslbvserver = JSON.dump(gslb_vserver)
+
+      resp_obj = JSON.parse(conn.request(
+          :method=>:put,
+          :path=>"/nitro/v1/config/gslbvserver/#{gslb_vserver_name}/",
+          :body => '{ "gslbvserver": ['+gslbvserver+'] }').body)
+    end
 
     if resp_obj["errorcode"] != 0
       Chef::Log.error( "put #{gslb_vserver_name} resp: #{resp_obj.inspect}")
