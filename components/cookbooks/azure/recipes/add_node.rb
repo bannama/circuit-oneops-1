@@ -38,6 +38,7 @@ zone = {
     "fault_domain" => vm.platform_fault_domain,
     "update_domain" => vm.platform_update_domain
 }
+puts "***RESULT:vm_size=#{vm.vm_size}"
 puts "***RESULT:zone=" + JSON.dump(zone)
 puts "***RESULT:instance_id=" + vm.id
 puts "***RESULT:instance_osdisk_id=" + vm.os_disk_name

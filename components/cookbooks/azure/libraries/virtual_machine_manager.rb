@@ -30,7 +30,6 @@ module AzureCompute
       @express_route_enabled = @compute_service['express_route_enabled']
       @secgroup_id = get_security_group_id(node)
       @image_id = node['image_id'].split(':')
-      @size_id = node['size_id']
       @oosize_id = node[:oosize_id]
       @ip_type = node['ip_type']
       @platform = @compute_service['ostype'].include?('windows') ? 'windows' : 'linux'
@@ -66,6 +65,8 @@ module AzureCompute
       @network_profile = AzureNetwork::NetworkInterfaceCard.new(@creds)
       @availability_set_response = @compute_client.availability_sets.get(@resource_group_name, @availability_set_name)
 
+      @size_id = get_vm_size_id(node)
+      
       @accelerated_networking = if (defined?(node[:workorder][:rfcCi][:ciAttributes][:accelerated_flag]))
         node[:workorder][:rfcCi][:ciAttributes][:accelerated_flag]
       else
@@ -305,6 +306,31 @@ module AzureCompute
       end
     end
 
-    private :get_security_group_id
+    def get_vm_size_id(node)
+      return nil if node['workorder']['rfcCi']['rfcAction'] == 'delete'
+
+      return node['size_id'] unless Utils.valid_json?(node['size_id'])
+
+      node['workorder']['payLoad']['RequiresComputes'].each do |compute|
+        return compute['ciAttributes']['vm_size'] if compute['ciAttributes'].key?(:vm_size)
+      end
+      
+      vm_list = @virtual_machine_lib.get_resource_group_vms(@resource_group_name)
+
+      matched_vms = Utils.get_vms_per_pack(vm_list, node['workorder']['box']['ciName']) if @is_new_cloud
+      vm_list = matched_vms if @is_new_cloud
+
+      # If we find no VMs on the portal, we'll pick the latest size from the JSON array
+      # Else we'll just get the size from any of the VMs belonging to the same pack from the portal
+      if vm_list.count.eql? 0
+        flavors_arr = JSON.parse(node['size_id'])
+        flavors_arr.last
+      else
+        vm = vm_list.first
+        vm.vm_size
+      end
+    end
+
+    private :get_security_group_id, :get_vm_size_id
   end
 end
