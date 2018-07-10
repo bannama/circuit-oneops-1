@@ -344,10 +344,61 @@ class Library
     return provider
   end
 
+  def get_all_gslb_service
+    gslb_services = Array.new
+    env_name = $node['workorder']['payLoad']['Environment'][0]['ciName']
+    platform_name = $node['workorder']['box']['ciName']
+    ci = $node['workorder']['box']
+    asmb_name = $node['workorder']['payLoad']['Assembly'][0]['ciName']
+    activeclouds = $node['workorder']['payLoad']['remotegdns']
+    activeclouds.each do |cloud|
+      dc_name = cloud['ciAttributes']['gslb_site_dns_id']
+      servicename = [env_name, platform_name, asmb_name, dc_name, ci["ciId"].to_s, "gslbsrvc"].join("-")
+      gslb_services.push(servicename)
+    end
+    return gslb_services
+  end
+
   def build_entry_list
+
+    if $node['workorder']['rfcCi']['rfcAction'] == "delete"
+      $node.set['dns_action'] = "delete"
+    end
+
 
     cloud_name = $node['workorder']['cloud']['ciName']
     service_attrs = get_dns_service
+
+    if $node['workorder']['services'].has_key?('gdns')
+      cloud_service =  $node['workorder']['services']['gdns'][cloud_name]
+    end
+
+    $node.set["is_last_active_cloud_in_dc"] = true
+    if $node['workorder']['box']['ciAttributes'].has_key?("is_platform_enabled") &&
+        $node['workorder']['box']['ciAttributes']['is_platform_enabled'] == 'true' &&
+        $node['workorder']['payLoad'].has_key?("activeclouds") && !cloud_service.nil?
+      $node['workorder']['payLoad']["activeclouds"].each do |service|
+
+        if service['ciAttributes'].has_key?("gslb_site_dns_id") &&
+            service['nsPath'] != cloud_service['nsPath'] &&
+            service['ciAttributes']['gslb_site_dns_id'] == cloud_service['ciAttributes']['gslb_site_dns_id']
+
+          $node.set['is_last_active_cloud_in_dc'] = false
+        end
+      end
+    end
+
+    $node.set["is_last_active_cloud"] = true
+    if $node['workorder']['box']['ciAttributes'].has_key?("is_platform_enabled") &&
+        $node['workorder']['box']['ciAttributes']['is_platform_enabled'] == 'true' &&
+        $node['workorder']['payLoad'].has_key?("activeclouds") && !cloud_service.nil?
+      $node['workorder']['payLoad']['activeclouds'].each do |service|
+
+        if service['nsPath'] != cloud_service['nsPath']
+          $node.set['is_last_active_cloud'] = false
+        end
+      end
+    end
 
     customer_domain = get_customer_domain
 
@@ -373,7 +424,8 @@ class Library
     provider = get_provider
 
     if env.has_key?("global_dns") && env["global_dns"] == "true" && depends_on_lb &&
-        !gdns_service.nil? && gdns_service["ciAttributes"]["gslb_authoritative_servers"] != '[]'
+        ((!gdns_service.nil? && gdns_service["ciAttributes"]["gslb_authoritative_servers"] != '[]') ||
+            ($node['is_last_active_cloud_in_dc'] && $node['dns_action'] == "delete"))
       if provider !~ /azuredns/
         get_gslb_domain
         get_dc_lbserver

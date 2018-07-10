@@ -385,14 +385,19 @@ def remove_old_binding
 
   if binding.size != 0
 
-    clean_domain(@new_resource.domain, gslb_vserver_name)
-
     resp_obj = JSON.parse(conn.request(
-        :method=>:post,
-        :path=>"/nitro/v1/config/gslbvserver_domain_binding/#{gslb_vserver_name}?action=unbind",
-        :body => URI::encode(req)).body)
+        :method=>:delete,
+        :path=>"/nitro/v1/config/gslbvserver_domain_binding/#{gslb_vserver_name}?args=domainname:#{@new_resource.domain}").body)
+
 
     Chef::Log.info( "domain bind after unbinding resp: #{resp_obj.inspect}")
+
+    if resp_obj["errorcode"] != 0
+      Chef::Log.error( "post #{gslb_vserver_name} resp: #{resp_obj.inspect}")
+      exit 1
+    else
+      Chef::Log.info( "post #{gslb_vserver_name} resp: #{resp_obj.inspect}")
+    end
 
   else
     Chef::Log.info( "already deleted: #{binding.inspect}")

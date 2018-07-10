@@ -88,4 +88,31 @@ if env.has_key?("global_dns") && env["global_dns"] == "true" && depends_on_lb &&
       end
     end
   end
+
+  lbs = []
+  JSON.parse($node['workorder']['rfcCi']['ciAttributes']['gslb_vnames']).keys.each do |lb_name|
+    lbs.push({:name => lb_name})
+  end
+
+  lbs.each do |lb|
+    resp_obj = JSON.parse(conn.request(
+        :method=>:get,
+        :path=>"/nitro/v1/config/gslbvserver_gslbservice_binding/#{lb[:name]}").body)
+    services = lib.get_all_gslb_service
+
+    service_names = Array.new
+    resp_obj["gslbvserver_gslbservice_binding"].each do |s|
+      service_names.push(s["servicename"])
+    end
+
+    services.each do |name|
+      context "GSLB service to gslbvserver" do
+        it "should exist" do
+          status = service_names.include? name
+          expect(status).to eq(true)
+        end
+      end
+    end
+
+  end
 end
