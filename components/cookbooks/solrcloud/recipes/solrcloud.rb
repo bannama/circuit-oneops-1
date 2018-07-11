@@ -374,9 +374,10 @@ if (node['solr_version'].start_with? "6.") || (node['solr_version'].start_with? 
   end
 
 
-  # Extract the jar contents and put it in /opt/solr.
-  # The extracted contents will have solrmonitor directory under which we have the scripts and the metrics directory. Metrics directory has the metrics list in yaml file
-  extractCustomConfig(solr_monitor_dir, solr_monitor_jar, solr_monitor_url, solr_monitor_custom_dir)
+  # Extract the jar contents and put it in /tmp/dirx and then copy required directories to the root(/)
+  tmp_recipes_dir="/tmp/custom_recipes_extraction_dir"
+  extract_custom_solr_recipes(solr_monitor_dir, solr_monitor_jar, tmp_recipes_dir)
+  check_directory(tmp_recipes_dir)
 
   directory '/opt/solr/solrmonitor/spiked-metrics' do
     owner 'app'
@@ -385,14 +386,6 @@ if (node['solr_version'].start_with? "6.") || (node['solr_version'].start_with? 
     action :create
   end
 
-  # Make sure the solr /opt directories exist and have the right permissions
-  %w[ /opt/solr /opt/solr/log /opt/solr/solrmonitor ].each do |app_dir|
-    directory app_dir do
-      owner 'app'
-      group 'app'
-      mode '0777'
-    end
-  end
 
   execute "fix /opt/solr/solrmonitor owner and group" do
     command "sudo chown app /opt/solr/solrmonitor/*; sudo chgrp app /opt/solr/solrmonitor/*; sudo chmod 0777 /opt/solr/solrmonitor/*"
