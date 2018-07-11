@@ -179,7 +179,7 @@ module SolrCloud
     end
 
     # Copy the existing directories in the untarred directory /tmp/dirx to the root-directory(/)
-    def check_directory(tmp_recipes_dir)
+    def copy_recipes_from_jar(tmp_recipes_dir)
       bash 'copy-contents' do
         code <<-EOH
           cd #{tmp_recipes_dir}

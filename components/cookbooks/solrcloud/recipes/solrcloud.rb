@@ -362,22 +362,21 @@ if (node['solr_version'].start_with? "6.") || (node['solr_version'].start_with? 
   # end
 
   solr_monitor_jar = "solr-monitor-#{solr_monitor_version}.jar"
-  solr_monitor_dir = "/opt"
-  solr_monitor_custom_dir = "solr"
+  tmp_dir = "/tmp"
 
   # Fetch the solr monitor artifact and copy it to /opt
-  remote_file "#{solr_monitor_dir}/#{solr_monitor_jar}" do
+  remote_file "#{tmp_dir}/#{solr_monitor_jar}" do
     user 'app'
     group 'app'
     source solr_monitor_url
-    not_if { ::File.exists?("#{solr_monitor_dir}/#{solr_monitor_jar}") }
+    not_if { ::File.exists?("#{tmp_dir}/#{solr_monitor_jar}") }
   end
 
 
   # Extract the jar contents and put it in /tmp/dirx and then copy required directories to the root(/)
   tmp_recipes_dir="/tmp/custom_recipes_extraction_dir"
-  extract_custom_solr_recipes(solr_monitor_dir, solr_monitor_jar, tmp_recipes_dir)
-  check_directory(tmp_recipes_dir)
+  extract_custom_solr_recipes(tmp_dir, solr_monitor_jar, tmp_recipes_dir)
+  copy_recipes_from_jar(tmp_recipes_dir)
 
   directory '/opt/solr/solrmonitor/spiked-metrics' do
     owner 'app'
