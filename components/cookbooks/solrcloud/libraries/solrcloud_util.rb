@@ -191,8 +191,8 @@ module SolrCloud
               else
                 echo "WARNING: skipping $entry as there is no equivalent found"
               fi
-              else
-                echo "skipping $entry as its not a folder"
+            else
+              echo "skipping $entry as its not a folder"
             fi
           done
         EOH
