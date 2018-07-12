@@ -344,63 +344,44 @@ def remove_old_binding
   end
 
   if resp_obj["message"] =~ /The GSLB vserver does not exist/
-    gslb_vserver = {
-        :name => gslb_vserver_name,
-        :dnsrecordtype => @new_resource.dnsrecordtype,
-        :servicetype =>  @new_resource.servicetype,
-        :lbmethod => @new_resource.lbmethod
-    }
+    Chef::Log.info( "While removing binding, The GSLB vserver does not exist")
+  else
+    binding = { :name => gslb_vserver_name, :domainname => @new_resource.domain }
+    req = 'object= { "gslbvserver_domain_binding" : '+JSON.dump(binding)+ '}'
 
-    req = 'object= { "gslbvserver":'+JSON.dump(gslb_vserver)+'}'
-
+    # binding from service to lbvserver
     resp_obj = JSON.parse(conn.request(
-        :method=>:post,
-        :path=>"/nitro/v1/config/gslbvserver",
+        :method=>:get,
+        :path=>"/nitro/v1/config/gslbvserver_domain_binding/#{gslb_vserver_name}",
         :body => URI::encode(req)).body)
 
-    if resp_obj["errorcode"] != 0
-      Chef::Log.error( "post #{gslb_vserver_name} resp: #{resp_obj.inspect}")
-      exit 1
-    else
-      Chef::Log.info( "post #{gslb_vserver_name} resp: #{resp_obj.inspect}")
-    end
-  end
 
-  binding = { :name => gslb_vserver_name, :domainname => @new_resource.domain }
-  req = 'object= { "gslbvserver_domain_binding" : '+JSON.dump(binding)+ '}'
+    puts "bindings: #{resp_obj.inspect}"
 
-  # binding from service to lbvserver
-  resp_obj = JSON.parse(conn.request(
-      :method=>:get,
-      :path=>"/nitro/v1/config/gslbvserver_domain_binding/#{gslb_vserver_name}",
-      :body => URI::encode(req)).body)
-
-
-  puts "bindings: #{resp_obj.inspect}"
-
-  binding = Array.new
-  if !resp_obj["gslbvserver_domain_binding"].nil?
-    binding = resp_obj["gslbvserver_domain_binding"].select{|v| v["domainname"] == @new_resource.domain }
-  end
-
-  if binding.size != 0
-
-    resp_obj = JSON.parse(conn.request(
-        :method=>:delete,
-        :path=>"/nitro/v1/config/gslbvserver_domain_binding/#{gslb_vserver_name}?args=domainname:#{@new_resource.domain}").body)
-
-
-    Chef::Log.info( "domain bind after unbinding resp: #{resp_obj.inspect}")
-
-    if resp_obj["errorcode"] != 0
-      Chef::Log.error( "post #{gslb_vserver_name} resp: #{resp_obj.inspect}")
-      exit 1
-    else
-      Chef::Log.info( "post #{gslb_vserver_name} resp: #{resp_obj.inspect}")
+    binding = Array.new
+    if !resp_obj["gslbvserver_domain_binding"].nil?
+      binding = resp_obj["gslbvserver_domain_binding"].select{|v| v["domainname"] == @new_resource.domain }
     end
 
-  else
-    Chef::Log.info( "already deleted: #{binding.inspect}")
+    if binding.size != 0
+
+      resp_obj = JSON.parse(conn.request(
+          :method=>:delete,
+          :path=>"/nitro/v1/config/gslbvserver_domain_binding/#{gslb_vserver_name}?args=domainname:#{@new_resource.domain}").body)
+
+
+      Chef::Log.info( "domain bind after unbinding resp: #{resp_obj.inspect}")
+
+      if resp_obj["errorcode"] != 0
+        Chef::Log.error( "post #{gslb_vserver_name} resp: #{resp_obj.inspect}")
+        exit 1
+      else
+        Chef::Log.info( "post #{gslb_vserver_name} resp: #{resp_obj.inspect}")
+      end
+
+    else
+      Chef::Log.info( "already deleted: #{binding.inspect}")
+    end
   end
 
 end
