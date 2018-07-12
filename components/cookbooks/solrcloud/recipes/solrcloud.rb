@@ -373,7 +373,7 @@ if (node['solr_version'].start_with? "6.") || (node['solr_version'].start_with? 
   end
 
 
-  # Extract the jar contents and put it in /tmp/dirx and then copy required directories to the root(/)
+  # Extract the jar contents and put it in /tmp/custom_recipes_extraction_dir and then copy required directories to the root(/)
   tmp_recipes_dir="/tmp/custom_recipes_extraction_dir"
   extract_custom_solr_recipes(tmp_dir, solr_monitor_jar, tmp_recipes_dir)
   copy_recipes_from_jar(tmp_recipes_dir)

@@ -155,7 +155,7 @@ module SolrCloud
       end
     end
 
-    # Extracts the custom configuration jar to a directory (new function to copy the jar to /tmp/dirx and then untar there)
+    # Extracts the custom configuration jar to a directory (new function to copy the jar to /tmp/custom_recipes_extraction_dir and then untar there)
     def extract_custom_solr_recipes(solr_config, config_jar, tmp_recipes_dir)
       bash 'unpack_customconfig_jar' do
         code <<-EOH
@@ -178,7 +178,10 @@ module SolrCloud
       end
     end
 
-    # Copy the existing directories in the untarred directory /tmp/dirx to the root-directory(/)
+    # Copy the existing directories in the untarred directory (/tmp/custom_recipes_extraction_dir) to the root-directory(/)
+    # Also ensuring that only folders are copied from the untarred directory and not files
+    # Incase there is not equivalent folder found at the root dir, then skipping that folder to be copied to the root-directory(/)
+    # Eg. if /tmp/custom_recipes_extraction_dir has a directory 'opt' and a 'opt' directory also exists at the root then it will be copied or else not
     def copy_recipes_from_jar(tmp_recipes_dir)
       bash 'copy-contents' do
         code <<-EOH
