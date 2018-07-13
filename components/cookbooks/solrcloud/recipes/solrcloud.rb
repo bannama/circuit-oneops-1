@@ -372,7 +372,6 @@ if (node['solr_version'].start_with? "6.") || (node['solr_version'].start_with? 
     not_if { ::File.exists?("#{tmp_dir}/#{solr_monitor_jar}") }
   end
 
-
   # Extract the jar contents and put it in /tmp/custom_recipes_extraction_dir and then copy required directories to the root(/)
   tmp_recipes_dir="/tmp/custom_recipes_extraction_dir"
   extract_custom_solr_recipes(tmp_dir, solr_monitor_jar, tmp_recipes_dir)
@@ -383,11 +382,6 @@ if (node['solr_version'].start_with? "6.") || (node['solr_version'].start_with? 
     group 'app'
     mode '0755'
     action :create
-  end
-
-
-  execute "fix /opt/solr/solrmonitor owner and group" do
-    command "sudo chown app /opt/solr/solrmonitor/*; sudo chgrp app /opt/solr/solrmonitor/*; sudo chmod 0777 /opt/solr/solrmonitor/*"
   end
 
   template "/opt/solr/solrmonitor/metrics-tool.rb" do
@@ -500,6 +494,12 @@ if (node['solr_version'].start_with? "6.") || (node['solr_version'].start_with? 
     end
     action :nothing
   end
+
+  # executing the performance test script
+  execute "performance_test" do
+    command "ruby /opt/solr-recipes/vm-performance-stats/performance_test.rb"
+  end
+
   # Note: No restart on update. User should manually restart (rolling restart) from action on update
   if node['action_name'] =~ /add|replace/
 

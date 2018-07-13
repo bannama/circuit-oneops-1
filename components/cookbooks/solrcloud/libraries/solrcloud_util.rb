@@ -179,7 +179,8 @@ module SolrCloud
     end
 
     # Copy the existing directories in the untarred directory (/tmp/custom_recipes_extraction_dir) to the root-directory(/)
-    # Also ensuring that only folders are copied from the untarred directory and not files
+    # Ensuring that only folders are copied from the untarred directory and not files
+    # Also providing the appropriate permissions to the directory
     # Incase there is not equivalent folder found at the root dir, then skipping that folder to be copied to the root-directory(/)
     # Eg. if /tmp/custom_recipes_extraction_dir has a directory 'opt' and a 'opt' directory also exists at the root then it will be copied or else not
     def copy_recipes_from_jar(tmp_recipes_dir)
@@ -191,11 +192,14 @@ module SolrCloud
             if [[ -d $entry ]]; then
               if [[ -d "/$entry" ]]; then
                 sudo cp -r $entry "/"
+                sudo chown app /$entry
+                sudo chgrp app /$entry
+                sudo chmod 0777 /$entry
               else
                 echo "WARNING: skipping $entry as there is no equivalent found"
               fi
             else
-              echo "skipping $entry as its not a folder"
+              echo "skipping the $entry as its not a folder"
             fi
           done
         EOH
