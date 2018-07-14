@@ -442,6 +442,7 @@ recipe "status", "Solr JVM Process Status"
 recipe "start", "Start Solr JVM Process"
 recipe "stop", "Stop Solr JVM Process"
 recipe "restart", "Restart Solr JVM Process"
+recipe "performance_test", "Performance Test"
 
 recipe "uploadsolrconfig",
   :description => 'Upload solr config to zookeeper',
