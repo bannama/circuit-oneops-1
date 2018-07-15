@@ -511,7 +511,6 @@ if (node['solr_version'].start_with? "6.") || (node['solr_version'].start_with? 
     end
   end
 
-
   # Note: No restart on update. User should manually restart (rolling restart) from action on update
   if node['action_name'] =~ /add|replace/
 

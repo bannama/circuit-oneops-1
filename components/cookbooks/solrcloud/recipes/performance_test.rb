@@ -4,7 +4,7 @@
 #
 # The recipe will run a performance test on the given compute based on cpu and memory
 #
-# 
+#
 
 execute "performance_test" do
   command "ruby /opt/solr-recipes/vm-performance-stats/performance_test.rb"
