@@ -159,6 +159,25 @@ if (node['solr_version'].start_with? "6.") || (node['solr_version'].start_with? 
     end
   }
 
+  # Create a specific log directory under node['data_dir_path'] to keep logs which are being generated as part of solr pack
+  Chef::Log.info("creating #{node['data_dir_path']}/solr-pack-logs for pack-users")
+  directory "#{node['data_dir_path']}/solr-pack-logs" do
+    owner node['solr']['user']
+    group node['solr']['user']
+    mode "0755"
+    recursive true
+    action :create
+  end
+
+  # Create a log file under node['data_dir_path']/solr-pack-logs to keep logs related to solr zookeeper connection check OO monitor
+  Chef::Log.info("creating #{node['data_dir_path']}/solr-pack-logs/solr_zk_check.log for nagios monitor")
+  file "#{node['data_dir_path']}/solr-pack-logs/solr_zk_check.log" do
+    mode '0644'
+    owner 'nagios'
+    group 'nagios'
+    action :create_if_missing
+  end
+
   # create heap_dump_dir if provided
   if node["heap_dump_dir"] != nil && !node["heap_dump_dir"].empty?
   	directory node["heap_dump_dir"] do
@@ -343,40 +362,26 @@ if (node['solr_version'].start_with? "6.") || (node['solr_version'].start_with? 
   # end
 
   solr_monitor_jar = "solr-monitor-#{solr_monitor_version}.jar"
-  solr_monitor_dir = "/opt"
-  solr_monitor_custom_dir = "solr"
+  tmp_dir = "/tmp"
 
   # Fetch the solr monitor artifact and copy it to /opt
-  remote_file "#{solr_monitor_dir}/#{solr_monitor_jar}" do
+  remote_file "#{tmp_dir}/#{solr_monitor_jar}" do
     user 'app'
     group 'app'
     source solr_monitor_url
-    not_if { ::File.exists?("#{solr_monitor_dir}/#{solr_monitor_jar}") }
+    not_if { ::File.exists?("#{tmp_dir}/#{solr_monitor_jar}") }
   end
 
-
-  # Extract the jar contents and put it in /opt/solr.
-  # The extracted contents will have solrmonitor directory under which we have the scripts and the metrics directory. Metrics directory has the metrics list in yaml file
-  extractCustomConfig(solr_monitor_dir, solr_monitor_jar, solr_monitor_url, solr_monitor_custom_dir)
+  # Extract the jar contents and put it in /tmp/custom_recipes_extraction_dir and then copy required directories to the root(/)
+  tmp_recipes_dir="/tmp/custom_recipes_extraction_dir"
+  extract_custom_solr_recipes(tmp_dir, solr_monitor_jar, tmp_recipes_dir)
+  copy_recipes_from_jar(tmp_recipes_dir)
 
   directory '/opt/solr/solrmonitor/spiked-metrics' do
     owner 'app'
     group 'app'
     mode '0755'
     action :create
-  end
-
-  # Make sure the solr /opt directories exist and have the right permissions
-  %w[ /opt/solr /opt/solr/log /opt/solr/solrmonitor ].each do |app_dir|
-    directory app_dir do
-      owner 'app'
-      group 'app'
-      mode '0777'
-    end
-  end
-
-  execute "fix /opt/solr/solrmonitor owner and group" do
-    command "sudo chown app /opt/solr/solrmonitor/*; sudo chgrp app /opt/solr/solrmonitor/*; sudo chmod 0777 /opt/solr/solrmonitor/*"
   end
 
   template "/opt/solr/solrmonitor/metrics-tool.rb" do
@@ -489,6 +494,24 @@ if (node['solr_version'].start_with? "6.") || (node['solr_version'].start_with? 
     end
     action :nothing
   end
+
+  # executing the performance test script
+  execute "performance_test" do
+    command "ruby /opt/solr-recipes/vm-performance-stats/performance_test.rb"
+  end
+  ruby_block 'parsing the performance_test_log file' do
+    block do
+      begin
+        file = File.open("/opt/solr/log/performance_test_log.txt", "rb")
+        contents = file.read
+        puts contents
+      rescue Exception => e
+        puts(e.message)
+      end
+    end
+  end
+
+
   # Note: No restart on update. User should manually restart (rolling restart) from action on update
   if node['action_name'] =~ /add|replace/
 

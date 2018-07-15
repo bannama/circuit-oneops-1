@@ -81,16 +81,31 @@ describe "azure node::create" do
         if avg.sku_name.eql? 'Classic'
           storage_profile = AzureCompute::StorageProfile.new(credentials)
           expect(vm.vm_size).to eq(storage_profile.get_old_azure_mapping($node[:workorder][:rfcCi][:ciAttributes][:size]))
-        elsif if avg.sku_name.eql? 'Aligned'
+        elsif avg.sku_name.eql? 'Aligned'
 
-                cloud_name = $node[:workorder][:cloud][:ciName]
-                cloud = $node[:workorder][:services][:compute][cloud_name][:ciAttributes]
+          cloud_name = $node[:workorder][:cloud][:ciName]
+          cloud = $node[:workorder][:services][:compute][cloud_name][:ciAttributes]
 
-                sizemap = JSON.parse(cloud[:sizemap])
-                size_id = sizemap[$node[:workorder][:rfcCi]["ciAttributes"]["size"]]
+          sizemap = JSON.parse(cloud[:sizemap])
+          size_id = sizemap[$node[:workorder][:rfcCi]["ciAttributes"]["size"]]
 
-                expect(vm.vm_size).to eq(size_id)
-              end
+          if Utils.valid_json?(size_id)
+            vm_list = virtual_machine_lib.get_resource_group_vms(resource_group_name)
+
+            is_new_cloud = Utils.is_new_cloud($node)
+            matched_vms = Utils.get_vms_per_pack(vm_list, $node['workorder']['box']['ciName']) if is_new_cloud
+            vm_list = matched_vms if is_new_cloud
+
+            if vm_list.count > 1
+              first_vm = vm_list.first
+              expect(vm.vm_size).to eq(first_vm.vm_size)
+            else
+              size_arr = JSON.parse(size_id)
+              expect(vm.vm_size).to eq(size_arr.last)
+            end
+          else
+            expect(vm.vm_size).to eq(size_id)
+          end
         end
       end
     end

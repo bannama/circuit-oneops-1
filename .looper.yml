@@ -9,7 +9,7 @@ envs:
     variables:
       AUTH_TOKEN: ENC[axFVAU7LEJe06+lYIgjMkTjkZDmr1UQoWWAWYjYn4RG94fwCuH98egLHnlCTFgmk]
       ONEOPS_AUTHTOKEN: ENC[WEDVpQpq1IkeHVueJ3ywaSBlemgCTJ8yO5Mj9ll+Bgo=]
-      CIRCUIT_REPO: ONEOPS-1-REPOSITORY
+      CIRCUIT_REPO: oneops-1-repository
       CIRCUIT_TYPE: oneops-1
       CIRCUIT_VAR_NAME: circuit-${CIRCUIT_TYPE}-version
       

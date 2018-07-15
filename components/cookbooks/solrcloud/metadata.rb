@@ -286,7 +286,7 @@ attribute 'solr_custom_component_version',
 # Solr Monitor Specific Attributes
 attribute 'solr_monitor_version',
           :description => 'Version of jar file with Solr Metrics',
-          :default => '1.0.5',
+          :default => '1.0.26',
           :required => 'required',
           :format => {
               :help => 'Expects a version of a jar file whose artifact is com.walmart.strati.af.df.managed_solr.solrmonitor:solrcloud-oneops-metrics. Example: 0.0.1, 1.0.2 etc',
@@ -442,6 +442,7 @@ recipe "status", "Solr JVM Process Status"
 recipe "start", "Start Solr JVM Process"
 recipe "stop", "Stop Solr JVM Process"
 recipe "restart", "Restart Solr JVM Process"
+recipe "performance_test", "Performance Test"
 
 recipe "uploadsolrconfig",
   :description => 'Upload solr config to zookeeper',

@@ -155,6 +155,57 @@ module SolrCloud
       end
     end
 
+    # Extracts the custom configuration jar to a directory (new function to copy the jar to /tmp/custom_recipes_extraction_dir and then untar there)
+    def extract_custom_solr_recipes(solr_config, config_jar, tmp_recipes_dir)
+      bash 'unpack_customconfig_jar' do
+        code <<-EOH
+          if [[ -f #{solr_config}/#{config_jar} ]]; then
+            mkdir -p #{tmp_recipes_dir}
+            mv #{solr_config}/#{config_jar} #{tmp_recipes_dir}
+          else
+            echo "Since the #{solr_config}/#{config_jar} does not exist the deployment has failed"
+            exit 125
+          fi
+          if [[ -f #{tmp_recipes_dir}/#{config_jar} ]]; then
+            cd #{tmp_recipes_dir}
+            sudo jar -xvf #{config_jar}
+            sudo rm #{config_jar}
+          else
+            echo "Since the #{tmp_recipes_dir}/#{config_jar} does not exist the deployment has failed"
+            exit 125
+          fi
+        EOH
+      end
+    end
+
+    # Copy the existing directories in the untarred directory (/tmp/custom_recipes_extraction_dir) to the root-directory(/)
+    # Ensuring that only folders are copied from the untarred directory and not files
+    # Also providing the appropriate permissions to the directory
+    # Incase there is not equivalent folder found at the root dir, then skipping that folder to be copied to the root-directory(/)
+    # Eg. if /tmp/custom_recipes_extraction_dir has a directory 'opt' and a 'opt' directory also exists at the root then it will be copied or else not
+    def copy_recipes_from_jar(tmp_recipes_dir)
+      bash 'copy-contents' do
+        code <<-EOH
+          cd #{tmp_recipes_dir}
+          for entry in *
+          do
+            if [[ -d $entry ]]; then
+              if [[ -d "/$entry" ]]; then
+                sudo cp -r $entry "/"
+                sudo chown app /$entry
+                sudo chgrp app /$entry
+                sudo chmod 0777 /$entry
+              else
+                echo "WARNING: skipping $entry as there is no equivalent found"
+              fi
+            else
+              echo "skipping the $entry as its not a folder"
+            fi
+          done
+        EOH
+      end
+    end
+
     # Construct and set the zookeeper FQDN to node level variable (zk_host_fqdns)
     def setZkhostfqdn(zkselect,ci)
       if zkselect != nil && zkselect.include?("InternalEnsemble-SameAssembly")

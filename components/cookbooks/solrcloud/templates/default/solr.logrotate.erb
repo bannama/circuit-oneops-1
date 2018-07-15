@@ -1,17 +1,16 @@
-<%= node["data_dir_path"]%>/logs/solr_gc.log.*{
- copytruncate
- yearly
- size 265M 
- rotate 8
- missingok
-}
+# The logrotate program is a log file manager in linux.
+# It is used to regularly cycle (or rotate) log files by removing the oldest ones from your system and creating new log files.
+# The logrotate program is configured by entering options in the /etc/logrotate.conf file.
+# logrotate.conf tells logrotate to be read in the log rotation parameters, which are stored in the files contained in the /etc/logrotate.d directory.
 
-<%= node["data_dir_path"]%>/logs/solr.log.*{
- copytruncate
- yearly
- size 265M 
- rotate 8
- missingok
-}
+# solr log rotate file will be getting cerated under /etc/logrotate.d
 
+# This file is used to keep the logs for solr zk connection check in solr oneops monitors
+<%= node["data_dir_path"] %>/solr-pack-logs/solr_zk_check.log
+{
+ daily
+ rotate 7
+ missingok
+ create 664 nagios nagios
+}
 

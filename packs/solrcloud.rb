@@ -153,6 +153,7 @@ resource "solrcloud",
   :attributes => {
     'jmx_port' => '$OO_LOCAL{solr_jmx_port}',
     'jolokia_port' => '$OO_LOCAL{jolokia_port}',
+    'port_no' => '8983',
     'solr_version' => '7.2.1',
     'gc_log_params' => '',
     'zk_client_timeout' => '60000',
@@ -170,7 +171,7 @@ resource "solrcloud",
     'enable_cinder' => 'true',
     'solr_custom_component_version' => '0.0.3',
     'solr_api_timeout_sec' => '300',
-    'solr_monitor_version' => '1.0.5'
+    'solr_monitor_version' => '1.0.26'
   },
 
   :monitors => {

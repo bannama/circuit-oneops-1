@@ -243,7 +243,16 @@ attribute 'size',
       ] }
   }
 
-attribute 'cores',
+attribute 'vm_size',
+  :description => 'VM Size',
+  :grouping => 'bom',
+  :format => {
+    :important => true,
+    :category => '2.Resources',
+    :order => 2
+  }
+
+  attribute 'cores',
   :description => "Number of CPU Cores",
   :grouping => 'bom',
   :format => {

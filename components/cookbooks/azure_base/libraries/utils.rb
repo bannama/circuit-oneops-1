@@ -207,6 +207,19 @@ module Utils
     resource_group_name
   end
 
+  def valid_json?(json_value)
+    begin
+      JSON.parse(json_value)
+      true
+    rescue Exception
+      false
+    end
+  end
+
+  def get_vms_per_pack(all_vms_list, ci_name)
+    all_vms_list.select { |vm| vm.name.include? "#{ci_name}-" }
+  end
+
   module_function :get_credentials,
                   :set_proxy,
                   :set_proxy_from_env,
@@ -220,6 +233,8 @@ module Utils
                   :get_resource_group,
                   :get_nsg_rg_name,
                   :get_nsg_name,
-                  :get_pack_name
+                  :get_pack_name,
+                  :valid_json?,
+                  :get_vms_per_pack
 
   end
