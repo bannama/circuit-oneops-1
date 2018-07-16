@@ -27,7 +27,7 @@ flows:
     - rm -rf _stashed_ws_snapshots
     - exposeVars(maven)
     - (name mvn-info) echo "Building ${MAVEN_GROUP_ID}:${MAVEN_ARTIFACT_ID}:${MAVEN_VERSION}"
-    - (name mvn-build) mvn clean release:prepare release:perform -B
+    - (name mvn-build) mvn clean release:clean release:prepare release:perform -B
     - var(RELEASE_VERSION = '%{MAVEN_VERSION.replace("-SNAPSHOT", "")}')
     - savepoint
     - rm -rf OneOpsCI
