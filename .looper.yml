@@ -12,6 +12,7 @@ envs:
       CIRCUIT_REPO: oneops-1-repository
       CIRCUIT_TYPE: oneops-1
       CIRCUIT_VAR_NAME: circuit-${CIRCUIT_TYPE}-version
+      CIRCUIT_NAME: circuit-${CIRCUIT_TYPE}
       
 flows:
   default:
@@ -22,6 +23,7 @@ flows:
    - call: pr-build 
     
   merge-build:
+    try:
     - rm -rf _stashed_ws_snapshots
     - exposeVars(maven)
     - (name mvn-info) echo "Building ${MAVEN_GROUP_ID}:${MAVEN_ARTIFACT_ID}:${MAVEN_VERSION}"
@@ -38,8 +40,13 @@ flows:
       - savepoint
       - echo " Release Deploy to Oneops STG ${RELEASE_VERSION}"
       - (name mvn-test-stg) mvn test -Dtestng.suite.type=null -Dtestng.suite.orgname=stgqe -Dtestng.suite.gitCommitId=${GITHUB_BRANCH_HEAD_SHA} -Dtestng.suite.gitPullNumber=${GITHUB_PR_NUMBER} -Dtestng.suite.jenkinsUrl=$BUILD_URL -Doneops.authtoken=${ONEOPS_AUTHTOKEN} -Doneops.version.variables.local="${CIRCUIT_VAR_NAME}:${RELEASE_VERSION} ${CIRCUIT_REPO}:pangaea_releases" -Doneops.version.variables.global="${CIRCUIT_VAR_NAME}:${RELEASE_VERSION} ${CIRCUIT_REPO}:pangaea_releases" -Doneops.instance=STG -Doneops.circuit.type=${CIRCUIT_TYPE} -Dconf.path=/qa.properties
+    catch:
+    - slack.postMessage:
+        message: "${CIRCUIT_NAME} merge-build has failed. URL: $BUILD_URL"
+        channelId: 'oneops_team'
   
   pr-build:
+    try:
     - rm -rf _stashed_ws_snapshots
     - exposeVars(maven)
     - (name mvn-info) echo "Building ${MAVEN_GROUP_ID}:${MAVEN_ARTIFACT_ID}:${MAVEN_VERSION}"
@@ -49,3 +56,7 @@ flows:
     - dir(OneOpsCI):
       - echo "Running Maven build in `pwd`"
       - (name mvn-test-pqa) mvn test -Dtestng.suite.type=null -Dtestng.suite.orgname=oneops-int -Dtestng.suite.gitCommitId=null -Dtestng.suite.gitPullNumber=${GITHUB_PR_NUMBER} -Dtestng.suite.jenkinsUrl=$BUILD_URL -Doneops.authtoken=${ONEOPS_AUTHTOKEN} -Doneops.version.variables.local="${CIRCUIT_VAR_NAME}:${MAVEN_VERSION} ${CIRCUIT_REPO}:pangaea_snapshots" -Doneops.version.variables.global="${CIRCUIT_VAR_NAME}:${MAVEN_VERSION} ${CIRCUIT_REPO}:pangaea_snapshots" -Doneops.instance=PQA -Doneops.circuit.type=${CIRCUIT_TYPE} -Dconf.path=/qa.properties
+    catch:
+    - slack.postMessage:
+        message: "${CIRCUIT_NAME} pr-build has failed. URL: $BUILD_URL"
+        channelId: 'oneops_team'
