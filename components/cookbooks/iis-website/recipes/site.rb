@@ -23,25 +23,55 @@ end
 website_physical_path = physical_path
 heartbeat_path = "#{physical_path}/heartbeat.html"
 
-certs = node.workorder.payLoad.DependsOn.select { |d| d[:ciClassName] =~ /Certificate/ }
+node.set[:workorder][:rfcCi][:ciAttributes][:auto_provision] = site.cert_auto_provision
 ssl_certificate_exists = false
 thumbprint = ''
 
-certs.each do |cert|
-  if !cert[:ciAttributes][:pfx_enable].nil? && cert[:ciAttributes][:pfx_enable] == 'true'
-    ssl_data = cert[:ciAttributes][:ssl_data]
-    ssl_password = cert[:ciAttributes][:ssl_password]
-    ssl_certificate_exists = true
+if binding_type == 'https'
+    ssl_data = ''
+
+    if site.cert_auto_provision == 'true'
+        Chef::Log.info "checking if certificate service exists"
+        cloud_name = node[:workorder][:cloud][:ciName]
+        provider = ""
+        cert_service = node[:workorder][:services][:certificate]
+        Chef::Log.info "node info - #{node}"
+        if !cert_service.nil? && !cert_service[cloud_name].nil?
+            provider = node[:workorder][:services][:certificate][cloud_name][:ciClassName].gsub("cloud.service.","").downcase.split(".").last
+        else
+            Chef::Log.error("Certificate cloud service not defined for this cloud")
+            exit 1
+        end
+
+        newcertificate = Hash.new
+        newcertificate["common_name"] = site.cert_common_name
+        newcertificate["san"] = site.cert_san
+        newcertificate["external"] = "false"
+        newcertificate["domain"] = site.cert_domain
+        newcertificate["owner_email"] = site.cert_owner_email
+        newcertificate["passphrase"] = site.cert_passphrase
+
+        node.set[:certificate] = newcertificate
+        node.set[:print_cert_bom_attributes] = false
+
+        if !site.cert_auto_provision.nil? && site.cert_auto_provision == "true" && !provider.nil? && !provider.empty?
+                include_recipe provider + "::add_certificate"
+                ssl_data = node[:pfx_cert]
+                ssl_password = site.cert_passphrase
+        end
+
+    else
+        ssl_data = site[:cert_ssl_data]
+        ssl_password = site.cert_ssl_password
+    end
 
     cert = OpenSSL::X509::Certificate.new(ssl_data)
     thumbprint = OpenSSL::Digest::SHA1.new(cert.to_der).to_s
-
+    ssl_certificate_exists = true
     iis_certificate platform_name do
-      raw_data ssl_data
-      password ssl_password
+        raw_data ssl_data
+        password ssl_password
     end
-
-  end
 end
 
 %W( #{physical_path} #{sc_directory_path} #{dc_directory_path} #{log_directory_path}).each do | path |
