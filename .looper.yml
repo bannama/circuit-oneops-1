@@ -34,9 +34,9 @@ flows:
     - git clone https://${AUTH_TOKEN}@gecgithub01.walmart.com/oneops/OneOpsCI.git
     - dir(OneOpsCI):
       - echo "Running Maven build in `pwd`"
-      - savepoint
-      - echo " Release Deploy to Oneops PQA ${RELEASE_VERSION} "
-      - (name mvn-test-pqa) mvn test -Dtestng.suite.type=null -Dtestng.suite.orgname=oneops-int -Dtestng.suite.gitCommitId=${GITHUB_BRANCH_HEAD_SHA} -Dtestng.suite.gitPullNumber=${GITHUB_PR_NUMBER} -Dtestng.suite.jenkinsUrl=$BUILD_URL -Doneops.authtoken=${ONEOPS_AUTHTOKEN} -Doneops.version.variables.local="${CIRCUIT_VAR_NAME}:${RELEASE_VERSION} ${CIRCUIT_REPO}:pangaea_releases" -Doneops.version.variables.global="${CIRCUIT_VAR_NAME}:${RELEASE_VERSION} ${CIRCUIT_REPO}:pangaea_releases" -Doneops.instance=PQA -Doneops.circuit.type=${CIRCUIT_TYPE} -Dconf.path=/qa.properties
+      #- savepoint
+      #- echo " Release Deploy to Oneops PQA ${RELEASE_VERSION} "
+      #- (name mvn-test-pqa) mvn test -Dtestng.suite.type=null -Dtestng.suite.orgname=oneops-int -Dtestng.suite.gitCommitId=${GITHUB_BRANCH_HEAD_SHA} -Dtestng.suite.gitPullNumber=${GITHUB_PR_NUMBER} -Dtestng.suite.jenkinsUrl=$BUILD_URL -Doneops.authtoken=${ONEOPS_AUTHTOKEN} -Doneops.version.variables.local="${CIRCUIT_VAR_NAME}:${RELEASE_VERSION} ${CIRCUIT_REPO}:pangaea_releases" -Doneops.version.variables.global="${CIRCUIT_VAR_NAME}:${RELEASE_VERSION} ${CIRCUIT_REPO}:pangaea_releases" -Doneops.instance=PQA -Doneops.circuit.type=${CIRCUIT_TYPE} -Dconf.path=/qa.properties
       - savepoint
       - echo " Release Deploy to Oneops STG ${RELEASE_VERSION}"
       - (name mvn-test-stg) mvn test -Dtestng.suite.type=null -Dtestng.suite.orgname=stgqe -Dtestng.suite.gitCommitId=${GITHUB_BRANCH_HEAD_SHA} -Dtestng.suite.gitPullNumber=${GITHUB_PR_NUMBER} -Dtestng.suite.jenkinsUrl=$BUILD_URL -Doneops.authtoken=${ONEOPS_AUTHTOKEN} -Doneops.version.variables.local="${CIRCUIT_VAR_NAME}:${RELEASE_VERSION} ${CIRCUIT_REPO}:pangaea_releases" -Doneops.version.variables.global="${CIRCUIT_VAR_NAME}:${RELEASE_VERSION} ${CIRCUIT_REPO}:pangaea_releases" -Doneops.instance=STG -Doneops.circuit.type=${CIRCUIT_TYPE} -Dconf.path=/qa.properties
