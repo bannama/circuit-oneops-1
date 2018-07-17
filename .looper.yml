@@ -51,11 +51,11 @@ flows:
     - exposeVars(maven)
     - (name mvn-info) echo "Building ${MAVEN_GROUP_ID}:${MAVEN_ARTIFACT_ID}:${MAVEN_VERSION}"
     - (name mvn-build) mvn -B clean deploy
-    - rm -rf OneOpsCI
-    - git clone https://${AUTH_TOKEN}@gecgithub01.walmart.com/oneops/OneOpsCI.git
-    - dir(OneOpsCI):
-      - echo "Running Maven build in `pwd`"
-      - (name mvn-test-pqa) mvn test -Dtestng.suite.type=null -Dtestng.suite.orgname=oneops-int -Dtestng.suite.gitCommitId=null -Dtestng.suite.gitPullNumber=${GITHUB_PR_NUMBER} -Dtestng.suite.jenkinsUrl=$BUILD_URL -Doneops.authtoken=${ONEOPS_AUTHTOKEN} -Doneops.version.variables.local="${CIRCUIT_VAR_NAME}:${MAVEN_VERSION} ${CIRCUIT_REPO}:pangaea_snapshots" -Doneops.version.variables.global="${CIRCUIT_VAR_NAME}:${MAVEN_VERSION} ${CIRCUIT_REPO}:pangaea_snapshots" -Doneops.instance=PQA -Doneops.circuit.type=${CIRCUIT_TYPE} -Dconf.path=/qa.properties
+    # - rm -rf OneOpsCI
+    # - git clone https://${AUTH_TOKEN}@gecgithub01.walmart.com/oneops/OneOpsCI.git
+    # - dir(OneOpsCI):
+    #   - echo "Running Maven build in `pwd`"
+    #   - (name mvn-test-pqa) mvn test -Dtestng.suite.type=null -Dtestng.suite.orgname=oneops-int -Dtestng.suite.gitCommitId=null -Dtestng.suite.gitPullNumber=${GITHUB_PR_NUMBER} -Dtestng.suite.jenkinsUrl=$BUILD_URL -Doneops.authtoken=${ONEOPS_AUTHTOKEN} -Doneops.version.variables.local="${CIRCUIT_VAR_NAME}:${MAVEN_VERSION} ${CIRCUIT_REPO}:pangaea_snapshots" -Doneops.version.variables.global="${CIRCUIT_VAR_NAME}:${MAVEN_VERSION} ${CIRCUIT_REPO}:pangaea_snapshots" -Doneops.instance=PQA -Doneops.circuit.type=${CIRCUIT_TYPE} -Dconf.path=/qa.properties
     catch:
     - slack.postMessage:
         message: "${CIRCUIT_NAME} pr-build has failed. URL: $BUILD_URL"
