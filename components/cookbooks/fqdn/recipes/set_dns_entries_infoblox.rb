@@ -261,3 +261,126 @@ node[:entries].each do |entry|
     fail_with_fault "could not verify: #{dns_name} to #{dns_values} on #{ns} after 5min."
   end
 end
+
+
+if node.has_key?("gslb_domain") && !node.gslb_domain.nil? &&
+    node[:workorder].has_key?('config') && node[:workorder][:config].has_key?('delegation_enable') && node[:workorder][:config][:delegation_enable].to_s.downcase == "true"
+
+  api_version = "v2.5"
+  fqdn = node.gslb_domain
+  base_domain = node.gslb_base_domain
+
+  delegation_info = "/secrets/gslb_delegation.json"
+
+  if ::File.exists?(delegation_info)
+
+    data_json = JSON.parse(File.read(delegation_info))
+
+    Chef::Log.info("Base domain : #{base_domain}")
+
+    delegation_entry_flag = false
+    delegation = nil
+
+    data_json["delegation"].each do |record|
+      if record["base_domain"] == base_domain
+        delegation_entry_flag = true
+        delegation = record["delegate_to"]
+      end
+    end
+
+    if delegation_entry_flag
+
+      #create connection with isd infoblox
+      host = data_json["infoblox"]["host"]
+      username = data_json["infoblox"]["username"]
+      password = data_json["infoblox"]["password"]
+
+      encoded = Base64.encode64("#{username}:#{password}").gsub("\n","")
+
+      http_proxy = ENV['http_proxy']
+      https_proxy = ENV['https_proxy']
+
+      ENV['http_proxy'] = ''
+      ENV['https_proxy'] = ''
+
+      conn = Excon.new('https://'+host,
+                       :headers => {'Authorization' => "Basic #{encoded}"}, :ssl_verify_peer => false)
+
+      # Validate the connection.
+      res =  conn.request(:method=>:get,:path=>"/wapi/v1.0/network")
+      if(res.status != 200)
+        raise res.body
+      end
+
+      # Set the connection object
+      node.set["delegation_infoblox_conn"] = conn
+      ENV['http_proxy'] = http_proxy
+      ENV['https_proxy'] = https_proxy
+
+      record_query = {
+          "fqdn" => fqdn
+      }
+
+      if node.dns_action == "delete" && node.is_last_active_cloud
+        Chef::Log.info("Deleting delegation entry : #{fqdn}")
+
+        res = node.delegation_infoblox_conn.request(
+            :method => :delete,
+            :path => "/wapi/#{api_version}/zone_delegated",
+            :body => JSON.dump(record_query))
+
+        object_info = JSON.parse(res.body)
+
+        if res.status == 200
+          Chef::Log.info("Delegation entry for #{fqdn} deleted successfully #{object_info.inspect}")
+        elsif res.status == 404
+          Chef::Log.info("No record found for deletion #{object_info.inspect}")
+        else
+          exit_with_error "Error while deleting delegation record"
+        end
+
+      else
+        Chef::Log.info("Creating/updating delegation entry: #{fqdn}")
+
+        response = JSON.parse(node.delegation_infoblox_conn.request(
+            :method => :get,
+            :path => "/wapi/#{api_version}/zone_delegated",
+            :body => JSON.dump(record_query)).body)
+
+        Chef::Log.info("Delegation data : #{delegation}")
+        if response.size == 0
+          record = {
+              "fqdn" => fqdn,
+              "delegate_to" => delegation,
+              "delegated_ttl" => 30
+          }
+          Chef::Log.info("Record : #{record}")
+
+          res = node.delegation_infoblox_conn.request(
+              :method => :post,
+              :path => "/wapi/#{api_version}/zone_delegated",
+              :body => JSON.dump(record))
+
+          object_info = JSON.parse(res.body)
+
+          if(res.status == 201)
+            Chef::Log.info("Delegation entry is created : #{object_info.inspect}")
+          else
+            exit_with_error "Delegation creation failed with error #{object_info.inspect}"
+          end
+        else
+          Chef::Log.info("We already have delegation on this fqdn #{response.inspect}")
+
+          delegate_to_size = response[0]['delegate_to'].size
+          if delegate_to_size != 6
+            exit_with_error "Delegation entries need to be check"
+          end
+        end
+      end
+    else
+      Chef::Log.info("Delegation entry will not be created for #{fqdn} with base domain #{base_domain}")
+    end
+  else
+    exit_with_error "gslb delegation config info is not available on this inductor"
+  end
+end

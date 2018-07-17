@@ -94,3 +94,78 @@ if env.has_key?("global_dns") && env["global_dns"] == "true" && depends_on_lb &&
     end
   end
 end
+
+if env.has_key?("global_dns") && env["global_dns"] == "true" && depends_on_lb &&
+    !gdns_service.nil? && gdns_service["ciAttributes"]["gslb_authoritative_servers"] != '[]' && $node['is_last_active_cloud']
+
+  if $node['workorder'].has_key?('config') && $node['workorder']['config'].has_key?('delegation_enable') && $node['workorder']['config']['delegation_enable'].to_s.downcase == "true"
+
+    api_version = "v2.5"
+    platform_name = $node['workorder']['box']['ciName']
+    cloud_name = $node['workorder']['cloud']['ciName']
+    gdns = $node['workorder']['services']['gdns'][cloud_name]['ciAttributes']
+    base_domain = gdns['gslb_base_domain']
+
+    subdomain = $node['workorder']['payLoad']['Environment'][0]['ciAttributes']['subdomain']
+
+    gslb_domain = [platform_name, subdomain, base_domain].join(".")
+    if subdomain.empty?
+      gslb_domain = [platform_name, base_domain].join(".")
+    end
+    fqdn = gslb_domain.downcase
+
+    record_query = {
+        "fqdn" => fqdn
+    }
+
+    delegation_info = "/secrets/gslb_delegation.json"
+    describe file(delegation_info) do
+      it { should be_file }
+    end
+
+    data_json = JSON.parse(File.read(delegation_info))
+
+    delegation_entry_flag = false
+
+    data_json["delegation"].each do |record|
+      if record["base_domain"] == base_domain
+        delegation_entry_flag = true
+      end
+    end
+
+    if delegation_entry_flag
+      host = data_json["infoblox"]["host"]
+      username = data_json["infoblox"]["username"]
+      password = data_json["infoblox"]["password"]
+
+      encoded = Base64.encode64("#{username}:#{password}").gsub("\n","")
+
+      http_proxy = ENV['http_proxy']
+      https_proxy = ENV['https_proxy']
+
+      ENV['http_proxy'] = ''
+      ENV['https_proxy'] = ''
+
+      conn = Excon.new('https://'+host,
+                       :headers => {'Authorization' => "Basic #{encoded}"}, :ssl_verify_peer => false)
+
+      ENV['http_proxy'] = http_proxy
+      ENV['https_proxy'] = https_proxy
+
+      response = JSON.parse(conn.request(
+          :method => :get,
+          :path => "/wapi/#{api_version}/zone_delegated",
+          :body => JSON.dump(record_query)).body)
+
+
+      context "Delegated record entry" do
+        it "should not exist" do
+          expect(response.size).to eq(0)
+        end
+      end
+    end
+
+  end
+end
+
+
