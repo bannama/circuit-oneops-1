@@ -31,8 +31,13 @@ node.set['azureCredentials'] = credentials
 virtual_machine_lib = AzureCompute::VirtualMachine.new(credentials)
 node.set['VM_exists'] = virtual_machine_lib.check_vm_exists?(vm_manager.resource_group_name, vm_manager.server_name)
 
-# create the vm
-vm = vm_manager.create_or_update_vm
+# create the vm / get if already exists
+vm = if node['VM_exists'].eql? true
+      virtual_machine_lib.get(vm_manager.resource_group_name, vm_manager.server_name)
+    else
+      vm_manager.create_or_update_vm
+    end
+
 zone = {
 
     "fault_domain" => vm.platform_fault_domain,
@@ -46,16 +51,29 @@ puts "***RESULT:instance_nic_id=" + vm.network_interface_card_ids[0]
 node.set[:fast_image] = vm_manager.fast_image_flag
 
 # set the ip type
-node.set['ip_type'] = vm_manager.ip_type
+if node['VM_exists'].eql? true
+  node.set['ip_type'] = if compute_service['express_route_enabled'].eql? 'true'; 'private' else 'public' end
+else
+  node.set['ip_type'] = vm_manager.ip_type
+end
 
 # set the initial user
 node.set['initial_user'] = vm_manager.initial_user
 
 # set the ip on the node as the private ip
-node.set['ip'] = vm_manager.private_ip
+node.set['ip'] = if node['VM_exists'].eql? true
+                  nic_lib = AzureNetwork::NetworkInterfaceCard.new(credentials)
+                  nic_lib.rg_name = vm_manager.resource_group_name
+
+                  nic_name = vm.network_interface_card_ids[0].split('/')[8]
+                  nic = nic_lib.get(nic_name)
+                  nic.private_ip_address
+                else
+                  vm_manager.private_ip
+                end
 # write the ip information to stdout for the inductor to pick up and use.
 
-ip_type = vm_manager.ip_type
+ip_type =  node['ip_type']
 ci_id = vm_manager.compute_ci_id
 
 if ip_type == 'private'
