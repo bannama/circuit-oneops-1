@@ -324,19 +324,27 @@ if node.has_key?("gslb_domain") && !node.gslb_domain.nil? &&
       if node.dns_action == "delete" && node.is_last_active_cloud
         Chef::Log.info("Deleting delegation entry : #{fqdn}")
 
-        res = node.delegation_infoblox_conn.request(
-            :method => :delete,
+        response = JSON.parse(node.delegation_infoblox_conn.request(
+            :method => :get,
             :path => "/wapi/#{api_version}/zone_delegated",
-            :body => JSON.dump(record_query))
+            :body => JSON.dump(record_query)).body)
 
-        object_info = JSON.parse(res.body)
+        if response.size != 0
+          delete_query = response[0]['_ref']
 
-        if res.status == 200
-          Chef::Log.info("Delegation entry for #{fqdn} deleted successfully #{object_info.inspect}")
-        elsif res.status == 404
-          Chef::Log.info("No record found for deletion #{object_info.inspect}")
+          res = node.delegation_infoblox_conn.request(
+              :method => :delete,
+              :path => "/wapi/#{api_version}/#{delete_query}")
+
+          if res.status == 200
+            Chef::Log.info("Delegation entry for #{fqdn} deleted successfully #{res.inspect}")
+          elsif res.status == 404
+            Chef::Log.info("No record found for deletion #{res.inspect}")
+          else
+            exit_with_error "Error while deleting delegation record"
+          end
         else
-          exit_with_error "Error while deleting delegation record"
+          Chef::Log.info("No record found for deletion")
         end
 
       else
@@ -361,12 +369,10 @@ if node.has_key?("gslb_domain") && !node.gslb_domain.nil? &&
               :path => "/wapi/#{api_version}/zone_delegated",
               :body => JSON.dump(record))
 
-          object_info = JSON.parse(res.body)
-
           if(res.status == 201)
-            Chef::Log.info("Delegation entry is created : #{object_info.inspect}")
+            Chef::Log.info("Delegation entry is created : #{res.inspect}")
           else
-            exit_with_error "Delegation creation failed with error #{object_info.inspect}"
+            exit_with_error "Delegation creation failed with error #{res.inspect}"
           end
         else
           Chef::Log.info("We already have delegation on this fqdn #{response.inspect}")
