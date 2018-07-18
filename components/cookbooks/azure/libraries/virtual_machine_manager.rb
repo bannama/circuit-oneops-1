@@ -312,25 +312,38 @@ module AzureCompute
       return node['size_id'] unless Utils.valid_json?(node['size_id'])
 
       node['workorder']['payLoad']['RequiresComputes'].each do |compute|
-        return compute['ciAttributes']['vm_size'] if compute['ciAttributes'].key?(:vm_size)
+        if compute['ciBaseAttributes'].key?(:size)
+          old_size = compute['ciBaseAttributes']['size']
+          new_size = compute['ciAttributes']['size']
+
+          OOLog.info("Change in VM Size Detected. Old Size: #{old_size}. New Size: #{new_size}. Getting the latest flavor for new size")
+
+          return pick_latest_vm_size(node['size_id']) if new_size != old_size
+        elsif compute['ciAttributes'].key?(:vm_size)
+          OOLog.info('Getting the VM size flavor from the node')
+          return compute['ciAttributes']['vm_size']
+        end
       end
-      
+
       vm_list = @virtual_machine_lib.get_resource_group_vms(@resource_group_name)
 
-      matched_vms = Utils.get_vms_per_pack(vm_list, node['workorder']['box']['ciName']) if @is_new_cloud
-      vm_list = matched_vms if @is_new_cloud
+      vm_list = Utils.get_vms_per_pack(vm_list, node['workorder']['box']['ciName']) if @is_new_cloud
 
-      # If we find no VMs on the portal, we'll pick the latest size from the JSON array
-      # Else we'll just get the size from any of the VMs belonging to the same pack from the portal
       if vm_list.count.eql? 0
-        flavors_arr = JSON.parse(node['size_id'])
-        flavors_arr.last
+        OOLog.info("No VM for size #{@oosize_id} is available. Fetching the latest flavor for size #{@oosize_id}")
+        pick_latest_vm_size(node['size_id'])
       else
+        OOLog.info('Getting VM size from VMs found on the portal')
         vm = vm_list.first
         vm.vm_size
       end
     end
 
-    private :get_security_group_id, :get_vm_size_id
+    def pick_latest_vm_size(vm_sizes)
+      sizes_arr = JSON.parse(vm_sizes)
+      sizes_arr.last
+    end
+
+    private :get_security_group_id, :get_vm_size_id, :pick_latest_vm_size
   end
 end

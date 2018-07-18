@@ -93,8 +93,7 @@ describe "azure node::create" do
             vm_list = virtual_machine_lib.get_resource_group_vms(resource_group_name)
 
             is_new_cloud = Utils.is_new_cloud($node)
-            matched_vms = Utils.get_vms_per_pack(vm_list, $node['workorder']['box']['ciName']) if is_new_cloud
-            vm_list = matched_vms if is_new_cloud
+            vm_list = Utils.get_vms_per_pack(vm_list, $node['workorder']['box']['ciName']) if is_new_cloud
 
             if vm_list.count > 1
               first_vm = vm_list.first
