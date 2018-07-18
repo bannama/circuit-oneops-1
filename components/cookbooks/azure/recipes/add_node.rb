@@ -31,12 +31,17 @@ node.set['azureCredentials'] = credentials
 virtual_machine_lib = AzureCompute::VirtualMachine.new(credentials)
 node.set['VM_exists'] = virtual_machine_lib.check_vm_exists?(vm_manager.resource_group_name, vm_manager.server_name)
 
+action = node['workorder']['rfcCi']['rfcAction']
+
+vm_exists_and_action_update = node['VM_exists'] && action.eql?('update')
+
 # create the vm / get if already exists
-vm = if node['VM_exists'].eql? true
-      virtual_machine_lib.get(vm_manager.resource_group_name, vm_manager.server_name)
-    else
-      vm_manager.create_or_update_vm
-    end
+if vm_exists_and_action_update
+  OOLog.info("Action: Update. VM Exists? True. Fetching VM #{vm_manager.server_name} to populate further values on node.")
+  vm = virtual_machine_lib.get(vm_manager.resource_group_name, vm_manager.server_name)
+else
+  vm = vm_manager.create_or_update_vm
+end
 
 zone = {
 
@@ -51,30 +56,40 @@ puts "***RESULT:instance_nic_id=" + vm.network_interface_card_ids[0]
 node.set[:fast_image] = vm_manager.fast_image_flag
 
 # set the ip type
-if node['VM_exists'].eql? true
-  node.set['ip_type'] = if compute_service['express_route_enabled'].eql? 'true'; 'private' else 'public' end
-else
-  node.set['ip_type'] = vm_manager.ip_type
-end
+node.set['ip_type'] = (compute_service['express_route_enabled'].eql? 'true') ? 'private' : 'public'
 
 # set the initial user
 node.set['initial_user'] = vm_manager.initial_user
 
-# set the ip on the node as the private ip
-node.set['ip'] = if node['VM_exists'].eql? true
-                  nic_lib = AzureNetwork::NetworkInterfaceCard.new(credentials)
-                  nic_lib.rg_name = vm_manager.resource_group_name
+ci_id = vm_manager.compute_ci_id
 
-                  nic_name = vm.network_interface_card_ids[0].split('/')[8]
-                  nic = nic_lib.get(nic_name)
-                  nic.private_ip_address
-                else
-                  vm_manager.private_ip
-                end
+# set the ip on the node as the private ip
+if vm_exists_and_action_update
+  nic_lib = AzureNetwork::NetworkInterfaceCard.new(credentials)
+  nic_lib.rg_name = vm_manager.resource_group_name
+
+  nic_platform_ci_id = node['workorder']['box']['ciId'] if Utils.is_new_cloud(node)
+  nic_name = Utils.get_component_name('nic', ci_id, nic_platform_ci_id)
+
+  nic = nic_lib.get(nic_name)
+
+  node.set['ip'] = nic.private_ip_address
+
+  # In case the OS is centos-7.4
+  accelerated_flag = node[:workorder][:rfcCi][:ciAttributes][:accelerated_flag]
+  nic_accelerated_flag = nic.enable_accelerated_networking.to_s
+
+  if node[:ostype].eql?('centos-7.4') && accelerated_flag != nic_accelerated_flag
+    nic.enable_accelerated_networking = accelerated_flag
+    nic_lib.create_update(nic)
+    OOLog.info('Accelerated Networking Updated Successfully')
+  end
+else
+  node.set['ip'] = vm_manager.private_ip
+end
 # write the ip information to stdout for the inductor to pick up and use.
 
-ip_type =  node['ip_type']
-ci_id = vm_manager.compute_ci_id
+ip_type = node['ip_type']
 
 if ip_type == 'private'
   puts "***RESULT:private_ip=#{node['ip']}"
