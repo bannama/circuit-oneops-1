@@ -350,11 +350,17 @@ class Library
     platform_name = $node['workorder']['box']['ciName']
     ci = $node['workorder']['box']
     asmb_name = $node['workorder']['payLoad']['Assembly'][0]['ciName']
-    activeclouds = $node['workorder']['payLoad']['remotegdns']
-    activeclouds.each do |cloud|
+
+    activeclouds = Array.new
+    $node['workorder']['payLoad']['activeclouds'].each do |clouds|
+      activeclouds.push(clouds['nsPath'])
+    end
+
+    remotedns = $node['workorder']['payLoad']['remotegdns']
+    remotedns.each do |cloud|
       dc_name = cloud['ciAttributes']['gslb_site_dns_id']
       servicename = [env_name, platform_name, asmb_name, dc_name, ci["ciId"].to_s, "gslbsrvc"].join("-")
-      gslb_services.push(servicename)
+      gslb_services.push(servicename) if activeclouds.include? cloud['nsPath']
     end
     return gslb_services
   end
